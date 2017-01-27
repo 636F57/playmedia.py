@@ -1,6 +1,11 @@
+# Copyright (c) 2016 636F57@GitHub
+# This software is released under an MIT license.
+# See LICENSE for full details.
 
-from ctypes import *
-from ctypes.wintypes import MSG
+import ctypes
+from ctypes.wintypes import *
+
+WNDFUNC = ctypes.WINFUNCTYPE(ctypes.c_int, HWND, ctypes.c_uint, WPARAM, LPARAM)
 
 def DoMsgLoop():
 	msg = MSG()
@@ -9,10 +14,10 @@ def DoMsgLoop():
 		windll.user32.DispatchMessageA(byRef(msg))
 			
 class ST_WNDCLASS(ctypes.Structure):
-	_fields_ = [("style", c_uint),
-				("lpfnWndProc", WNDPROCTYPE),
-				("cbClsExtra", c_int),
-				("cbWndExtra", c_int),
+	_fields_ = [("style", ctypes.c_uint),
+				("lpfnWndProc", WNDFUNC),
+				("cbClsExtra", ctypes.c_int),
+				("cbWndExtra", ctypes.c_int),
 				("hInstance", HANDLE),
 				("hIcon", HANDLE),
 				("hCursor", HANDLE),
@@ -21,41 +26,43 @@ class ST_WNDCLASS(ctypes.Structure):
 				("lpszClassName", LPCWSTR)]
 
 class MsgOnlyWnd:
+	
 	def __init__(self, alias, callbackfunc):
 		self.hWnd = 0		
 		self.alias = alias
 		self.callbackfunc = callbackfunc
 		
-		if registerWindow():
-			self.hWnd = createWindow()
+		if self.__registerWindow():
+			self.hWnd = self.__createWindow()
+			
+	def	getHWND(self):
+		return self.hWnd
 		
-		
-	def onMessage(self, hWnd, msg, wParam, lParam):
+	def __onMessage(self, hWnd, msg, wParam, lParam):
 		if msg == MM_MCINOTIFY:
-			self.callbackfunc()
+			self.callbackfunc(self.alias)
 			return 0
 		else:
-			return windll.user32.DefWindowProcW(hWnd, Msg, wParam, lParam)
+			return ctypes.windll.user32.DefWindowProcW(hWnd, Msg, wParam, lParam)
 		
-	def registerWindow(self):
-		WNDFUNC = WINFUNCTYPE(c_int, HWND, c_uint, WPARAM, LPARAM)
+	def __registerWindow(self):
 		wclassName = u'My Python Win32 Class'
 		wname = u'My test window'
 		
 		wndClass = ST_WNDCLASS()
-		wndClass.lpfnWndProc = WNDFUNC(onMessage)
-		wndClass.hInstance = windll.kernel32.GetModuleHandleW(0)
+		wndClass.lpfnWndProc = WNDFUNC(self.__onMessage)
+		wndClass.hInstance = ctypes.windll.kernel32.GetModuleHandleW(0)
 		wndClass.lpszClassName = self.alias
 		
-		res = windll.user32.RegisterClass(ctypes.byref(wndClass))
+		res = ctypes.windll.user32.RegisterClassW(ctypes.byref(wndClass))
 		if res != 0:
-			print("Error in registerWindow. alias =", alias)
+			print("Error ",res," in registerWindow. alias =", self.alias)
 			return False
 		else:
 			return True
 					
-	def createWindow(self):
-		hWnd = windll.user32.CreateWindow(self.alias, 
+	def __createWindow(self):
+		hWnd = ctypes.windll.user32.CreateWindow(self.alias, 
 						0, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, 0, 0)
 			
 		if hWnd == 0:

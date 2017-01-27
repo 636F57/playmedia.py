@@ -2,25 +2,28 @@
 # This software is released under an MIT license.
 # See LICENSE for full details.
 
-from ctypes import *
-from msgonlywnd import msgOnlyWnd
+import ctypes
+from msgonlywnd import MsgOnlyWnd
 
 class playmedia:
-	def _init_:
+	def __init__(self):
 		self.dictAlias = {}
 
-	def mci_cmd(self, msg):
-		res = windll.winmm.mciSendStringA(msg, 0, 0, 0)
+	@classmethod
+	def __mciCmd(cls, msg, hwnd=0):
+		res = ctypes.windll.winmm.mciSendStringW(msg, 0, 0, hwnd)
 		if res != 0:
 			print("Error:", res, ", Failed in mciSendStringA, msg=", msg)
-			return False:
+			return False
+		else:
+			return True
 
 	def closeAll(self):
-		mciSend("close all")
+		playmedia.__mciCmd("close all")
 		
 	def close(self, alias):
 		if alias in self.dictAlias:
-			mciSend("close "+alias)
+			playmedia.__mciCmd("close "+alias)
 			self.dictAlias.pop(alias)
 			return True
 		else:
@@ -29,26 +32,30 @@ class playmedia:
 		
 	def playAgain(self, alias):
 		if alias in self.dictAlias:
-			mciSend("play "+ alias + " notify", 0, 0, self.dictAlias[alias])
+			playmedia.__mciCmd("play "+ alias + " notify", 0, 0, self.dictAlias[alias])
 			return True
 		else:
 			print("alias not found")
 			return False
 		
-	def openAndPlayMp3(filename, callbackfunc):
-		alias = "mp3"+str(len(self.listAlias))
-		
-		if mciSend("open \" + filaname + "\ type mpegvideo alias "+ alias):
-			hwnd = msgOnlyWnd(alias, callbackfunc)
+	def openAndPlayMp3(self, filename, callbackfunc):
+		alias = "mp3"+str(len(self.dictAlias))
+		if playmedia.__mciCmd("open " + filename + " type mpegvideo alias "+ alias):
+		#if playmedia.__mciCmd("open \"" + filename + "\" type waveaudio alias "+ alias):
+			playmedia.__mciCmd("play "+ alias, 0) #for test
+			mwnd = MsgOnlyWnd(alias, callbackfunc)
+			hwnd = mwnd.getHWND()
 			if hwnd != 0:
-				self.listAlias[alias] = hwnd
-				mciSend("play "+ alias + " notify", 0, 0, hwnd)
+				print(hwnd)
+				self.dictAlias[alias] = hwnd
+				playmedia.__mciCmd("play "+ alias + " notify", hwnd)
 				return alias
 			else:
-				mciSend("close "+alias)
+				print("Failed to create Message only Window.")
+				playmedia.__mciCmd("close "+alias)
 				return ""
 		else:
-			print("Failed in opening MCI device.")
+			print("Failed to open a MCI device.")
 			return ""
 		
 		
